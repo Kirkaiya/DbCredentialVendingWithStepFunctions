@@ -1,0 +1,59 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Home page";
+}
+
+<div class="text-center">
+    <h1 class="display-4">NGE Client Services System Access</h1>
+    <p>
+        Select the customer database you wish to connect to below:
+    </p>
+    <form asp-page-handler="" method="post">
+        <p><select name="CustomerDb" asp-items="Model.DbItems" asp-for="SelectedDB"></select></p>
+        <p>
+            <input type="submit" value="Get Password">
+        </p>
+        <p></p>
+	</form>
+   
+    <form asp-page-handler="Test" method="post">
+		@if (Model.ShowCredsDiv)
+		{
+			<div style="text-align:left; margin-left: 50px;">
+				<p>
+					Database: <strong><pre style="font-size:14pt">@Model.SelectedDB</pre></strong>
+				</p>
+				<p>
+					Password: <strong><pre style="font-size:14pt">@Model.NewPassword</pre></strong>
+				</p>
+				<p>
+					<em>
+						*Please allow up to 2 minutes for the password change to take effect.
+						The password will expire in 8 hours.
+					</em>
+				</p>
+				<p>
+					<input name="TempUserConnStr" type="text" asp-for="TempUserConnStr" style="width:650px;" />
+					<input type="submit" value="Test Connection">
+				</p>
+				<strong>@Model.ExecutionARN</strong>
+			</div>
+		}
+    </form>
+
+	@if (Model.ShowTestResult)
+	{
+		<div style="text-align:left; margin-left: 50px;">
+			@if (Model.ConnSuccess)
+			{
+				<span style="font-size:large; color:#66AA66; font-weight:bold">Connection succeeded!</span>
+			}
+			else
+			{
+				<span style="font-size:large; color:#AA6666; font-weight:bold">Connection Failed!</span>
+			}
+		</div>
+	}	
+
+</div>

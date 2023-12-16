@@ -1,0 +1,149 @@
+﻿#add
+$Null = Install-PackageProvider -Name 'NuGet' -MinimumVersion '2.8.5' -Force -ErrorAction Stop
+Set-PSRepository -Name 'PSGallery' -InstallationPolicy 'Trusted' -ErrorAction Stop
+Install-Module -Name 'SqlServer' -ErrorAction Stop -allowclobber
+$UserPassword = ConvertTo-SecureString ('KirkIsGreat23') -AsPlainText -Force
+$Credentials = New-Object -TypeName 'System.Management.Automation.PSCredential' ('sa', $UserPassword)
+$TempUserPassword = ConvertTo-SecureString ('P@ssw0rd') -AsPlainText -Force
+$TempCredentials = New-Object -TypeName 'System.Management.Automation.PSCredential' ('tempuser', $TempUserPassword)
+Add-SqlLogin -ServerInstance 'EC2AMAZ-D5TSKTV' -LoginPSCredential $TempCredentials -LoginType 'SqlLogin' -DefaultDatabase 'CustomerDb1' -Credential $Credentials
+
+
+
+
+#remove: 
+Remove-sqlLogin -ServerInstance "EC2AMAZ-D5TSKTV" -LoginName "tempuser" -force
+
+===================================================
+Working state to create the user with the password passed from web app.
+Caveats: tempuser is created disabled, and at mssql server level, and isn't created for the specified database
+Also, database name is hardcoded for now
+===================================================
+Full state:
+-----------
+"CreateDbUser": {
+      "Type": "Task",
+      "Parameters": {
+        "DocumentName": "AWS-RunPowerShellScript",
+        "Parameters": {
+          "commands.$": "States.Array('$Null = Install-PackageProvider -Name \"NuGet\" -MinimumVersion \"2.8.5\" -Force -ErrorAction Stop','Set-PSRepository -Name \"PSGallery\" -InstallationPolicy \"Trusted\" -ErrorAction Stop','Install-Module -Name \"SqlServer\" -ErrorAction Stop -allowclobber','$UserPassword = ConvertTo-SecureString (\"KirkIsGreat23\") -AsPlainText -Force','$Credentials = New-Object -TypeName \"System.Management.Automation.PSCredential\" (\"sa\", $UserPassword)',States.Format('$TempUserPassword = ConvertTo-SecureString (\"{}\") -AsPlainText -Force',$.password),'$TempCredentials = New-Object -TypeName \"System.Management.Automation.PSCredential\" (\"tempuser\", $TempUserPassword)','Add-SqlLogin -ServerInstance \"EC2AMAZ-D5TSKTV\" -LoginPSCredential $TempCredentials -LoginType \"SqlLogin\" -DefaultDatabase \"CustomerDb1\" -Credential $Credentials -Enable -GrantConnectSql')"
+        },
+        "Targets": [
+          {
+            "Key": "InstanceIds",
+            "Values": [
+              "i-0d6cbaa0e04d69fd3"
+            ]
+          }
+        ]
+      },
+      "Resource": "arn:aws:states:::aws-sdk:ssm:sendCommand",
+      "Next": "Wait"
+    }
+
+========================
+Parameters only:
+----------------
+{
+  "DocumentName": "AWS-RunPowerShellScript",
+  "Parameters": {
+    "commands.$": "States.Array('$Null = Install-PackageProvider -Name \"NuGet\" -MinimumVersion \"2.8.5\" -Force -ErrorAction Stop','Set-PSRepository -Name \"PSGallery\" -InstallationPolicy \"Trusted\" -ErrorAction Stop','Install-Module -Name \"SqlServer\" -ErrorAction Stop -allowclobber','$UserPassword = ConvertTo-SecureString (\"KirkIsGreat23\") -AsPlainText -Force','$Credentials = New-Object -TypeName \"System.Management.Automation.PSCredential\" (\"sa\", $UserPassword)',States.Format('$TempUserPassword = ConvertTo-SecureString (\"{}\") -AsPlainText -Force',$.password),'$TempCredentials = New-Object -TypeName \"System.Management.Automation.PSCredential\" (\"tempuser\", $TempUserPassword)','Add-SqlLogin -ServerInstance \"EC2AMAZ-D5TSKTV\" -LoginPSCredential $TempCredentials -LoginType \"SqlLogin\" -DefaultDatabase \"CustomerDb1\" -Credential $Credentials -Enable -GrantConnectSql')"
+  },
+  "Targets": [
+    {
+      "Key": "InstanceIds",
+      "Values": [
+        "i-0d6cbaa0e04d69fd3"
+      ]
+    }
+  ]
+}
+
+===================================================
+State machine to remove the user
+===================================================
+    "RemoveDbUser": {
+      "Type": "Task",
+      "End": true,
+      "Parameters": {
+        "DocumentName": "AWS-RunPowerShellScript",
+        "Parameters": {
+          "commands.$": "States.Array('$Null = Install-PackageProvider -Name \"NuGet\" -MinimumVersion \"2.8.5\" -Force -ErrorAction Stop','Set-PSRepository -Name \"PSGallery\" -InstallationPolicy \"Trusted\" -ErrorAction Stop','Install-Module -Name \"SqlServer\" -ErrorAction Stop -allowclobber','$UserPassword = ConvertTo-SecureString (\"KirkIsGreat23\") -AsPlainText -Force','$Credentials = New-Object -TypeName \"System.Management.Automation.PSCredential\" (\"sa\", $UserPassword)','Remove-sqlLogin -ServerInstance \"EC2AMAZ-D5TSKTV\" -LoginName \"tempuser\" -force')"
+        },
+        "Targets": [
+          {
+            "Key": "InstanceIds",
+            "Values": [
+              "i-0d6cbaa0e04d69fd3"
+            ]
+          }
+        ]
+      },
+      "Resource": "arn:aws:states:::aws-sdk:ssm:sendCommand"
+    }
+
+
+
+======================
+scratch area
+
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+
+Add-RoleMember -MemberName "foo\user1" -Database "DB1" -RoleName "myRole"
+
+
+https://states-language.net/
+
+
+
+Full state machine definition:
+------------------------------
+{
+  "Comment": "A description of my state machine",
+  "StartAt": "CreateDbUser",
+  "States": {
+    "CreateDbUser": {
+      "Type": "Task",
+      "Parameters": {
+        "DocumentName": "AWS-RunPowerShellScript",
+        "Parameters": {
+          "commands.$": "States.Array('$Null = Install-PackageProvider -Name \"NuGet\" -MinimumVersion \"2.8.5\" -Force -ErrorAction Stop','Set-PSRepository -Name \"PSGallery\" -InstallationPolicy \"Trusted\" -ErrorAction Stop','Install-Module -Name \"SqlServer\" -ErrorAction Stop -allowclobber','$UserPassword = ConvertTo-SecureString (\"KirkIsGreat23\") -AsPlainText -Force','$Credentials = New-Object -TypeName \"System.Management.Automation.PSCredential\" (\"sa\", $UserPassword)',States.Format('$TempUserPassword = ConvertTo-SecureString (\"{}\") -AsPlainText -Force',$.password),'$TempCredentials = New-Object -TypeName \"System.Management.Automation.PSCredential\" (\"tempuser\", $TempUserPassword)','Add-SqlLogin -ServerInstance \"EC2AMAZ-D5TSKTV\" -LoginPSCredential $TempCredentials -LoginType \"SqlLogin\" -DefaultDatabase \"CustomerDb1\" -Credential $Credentials -Enable -GrantConnectSql')"
+        },
+        "Targets": [
+          {
+            "Key": "InstanceIds",
+            "Values": [
+              "i-0d6cbaa0e04d69fd3"
+            ]
+          }
+        ]
+      },
+      "Resource": "arn:aws:states:::aws-sdk:ssm:sendCommand",
+      "Next": "Wait"
+    },
+    "Wait": {
+      "Type": "Wait",
+      "Seconds": 300,
+      "Next": "RemoveDbUser"
+    },
+    "RemoveDbUser": {
+      "Type": "Task",
+      "End": true,
+      "Parameters": {
+        "DocumentName": "AWS-RunPowerShellScript",
+        "Parameters": {
+          "commands.$": "States.Array('$Null = Install-PackageProvider -Name \"NuGet\" -MinimumVersion \"2.8.5\" -Force -ErrorAction Stop','Set-PSRepository -Name \"PSGallery\" -InstallationPolicy \"Trusted\" -ErrorAction Stop','Install-Module -Name \"SqlServer\" -ErrorAction Stop -allowclobber','$UserPassword = ConvertTo-SecureString (\"KirkIsGreat23\") -AsPlainText -Force','$Credentials = New-Object -TypeName \"System.Management.Automation.PSCredential\" (\"sa\", $UserPassword)','Remove-sqlLogin -ServerInstance \"EC2AMAZ-D5TSKTV\" -LoginName \"tempuser\" -force')"
+        },
+        "Targets": [
+          {
+            "Key": "InstanceIds",
+            "Values": [
+              "i-0d6cbaa0e04d69fd3"
+            ]
+          }
+        ]
+      },
+      "Resource": "arn:aws:states:::aws-sdk:ssm:sendCommand"
+    }
+  }
+}
